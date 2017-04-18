@@ -1,8 +1,10 @@
-from flask import g, jsonify
+from flask import g, jsonify, request
 from flask_httpauth import HTTPBasicAuth
 from ..models import User, AnonymousUser
 from . import api
 from .errors import unauthorized, forbidden
+from .. import db
+from ..email import send_email
 
 auth = HTTPBasicAuth()
 
@@ -43,3 +45,31 @@ def get_token():
         return unauthorized('Invalid credentials')
     return jsonify({'token': g.current_user.generate_auth_token(
         expiration=3600), 'expiration': 3600})
+
+#usage:
+#http --auth : --json POST http://127.0.0.1:5000/api/v1.0/register/ email=? name=? password=?
+@api.route('/register/', methods=['POST'])
+def register():
+    email = request.json.get('email')
+    name = request.json.get('name')
+    password = request.json.get('password')
+
+    if User.query.filter_by(email=email).first(): return jsonify({'status': 'email'})
+    elif User.query.filter_by(username=name).first(): return jsonify({'status': 'name'})
+    else:
+        user = User(email=email,
+                    username=name,
+                    password=password)
+        db.session.add(user)
+        db.session.commit()
+        token = user.generate_confirmation_token()
+        send_email(user.email, 'Confirm Your Account',
+                   'auth/email/confirm', user=user, token=token)
+        return jsonify({'status': 'pass'})
+
+@api.route('/login/', methods=['POST'])
+def login():
+    user = User.query.filter_by(email=request.json.get('email')).first()
+    if user is not None and user.verify_password(request.json.get('password')):
+        return jsonify({'status': 'pass'})
+    return jsonify({'status': 'fail'})
