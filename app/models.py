@@ -117,6 +117,15 @@ class User(UserMixin, db.Model):
                 db.session.add(user)
                 db.session.commit()
 
+    @staticmethod
+    def add_all_follows():
+        for usera in User.query.all():
+            for userb in User.query.all():
+                if not usera.is_following(userb):
+                    usera.follow(userb)
+                    db.session.add(usera)
+        db.session.commit()
+
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
         if self.role is None:
@@ -301,9 +310,11 @@ class Post(db.Model):
 
         seed()
         user_count = User.query.count()
+        actSet = ['chest press', 'seated row', 'leg press', 'abdominal', 'bicep curl', 'counter balance smith', 'tricep press', 'leg extension', 'hyperextension']
         for i in range(count):
             u = User.query.offset(randint(0, user_count - 1)).first()
-            p = Post(body=forgery_py.lorem_ipsum.sentences(randint(1, 5)),
+            #forgery_py.lorem_ipsum.sentences(randint(1, 5))
+            p = Post(body=actSet[randint(0,8)]+'/'+str(randint(30,100))+'/'+str(randint(10,50)),
                      timestamp=forgery_py.date.date(True),
                      author=u)
             db.session.add(p)
