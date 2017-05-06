@@ -99,6 +99,7 @@ class User(UserMixin, db.Model):
                      username=forgery_py.internet.user_name(True),
                      password=forgery_py.lorem_ipsum.word(),
                      confirmed=True,
+                     role_id=3,
                      name=forgery_py.name.full_name(),
                      location=forgery_py.address.city(),
                      about_me=forgery_py.lorem_ipsum.sentence(),
@@ -124,6 +125,14 @@ class User(UserMixin, db.Model):
                 if not usera.is_following(userb):
                     usera.follow(userb)
                     db.session.add(usera)
+        db.session.commit()
+
+    @staticmethod
+    def add_role():
+        for user in User.query.all():
+            if not user.role_id:
+                user.role_id = 3
+                db.session.add(user)
         db.session.commit()
 
     def __init__(self, **kwargs):
