@@ -87,6 +87,7 @@ class User(UserMixin, db.Model):
                                 cascade='all, delete-orphan')
     comments = db.relationship('Comment', backref='author', lazy='dynamic')
     summary = db.Column(db.Text(),default="")
+    recommendation = db.Column(db.Text,default="")
 
     @staticmethod
     def generate_fake(count=100):
@@ -136,7 +137,7 @@ class User(UserMixin, db.Model):
                 db.session.add(user)
         db.session.commit()
 
-    # This function should be called before ML
+    # This function should be called before Recommendation
     @staticmethod
     def Summary():
         from collections import OrderedDict
@@ -153,7 +154,7 @@ class User(UserMixin, db.Model):
         db.session.commit()
 
     @staticmethod
-    def Recommandation():
+    def Recommendation():
         from collections import OrderedDict
         import pandas as pd
         rawDic = OrderedDict([(i,[]) for i in ['id', 'chest press', 'seated row', 'leg press',
@@ -162,7 +163,37 @@ class User(UserMixin, db.Model):
         for user in User.query.all():
             for i,j in zip(rawDic.keys(), [user.id]+user.summary.split()): rawDic[i].append(j)
         df = pd.DataFrame.from_dict(rawDic)
-        df.to_csv('data.csv')
+        df.to_csv('data.csv',index=False)
+
+    @staticmethod
+    def ML():
+        import numpy as np
+        import pandas as pd
+        from sklearn.metrics.pairwise import pairwise_distances
+        from sklearn.preprocessing import StandardScaler
+
+        df = pd.read_csv('data.csv')
+        n_users = df.id.nunique()
+        n_items = df.columns.nunique() - 1
+
+        scaler = StandardScaler()
+        scaler.fit(df.drop('id',axis=1))
+        scaled_features = scaler.transform(df.drop('id',axis=1))
+        df_feat = pd.DataFrame(scaled_features,columns=df.columns[1:])
+        # df_feat.head()
+
+        data_matrix = np.zeros((n_users, n_items))
+
+        for line in df_feat.itertuples():
+            for i in range(n_items):
+                data_matrix[line[0], i] = line[i+1]
+
+        user_similarity = pairwise_distances(data_matrix, metric='l2')
+        for user in User.query.all():
+            user.recommendation = ' '.join([str(i[0]) for i in sorted(enumerate(user_similarity[user.id-1]),key=lambda x:x[1])[1:11]])
+            db.session.add(user)
+        db.session.commit()
+
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
@@ -289,15 +320,24 @@ class User(UserMixin, db.Model):
     def to_json(self):
         json_user = {
             'url': url_for('api.get_user', id=self.id, _external=True),
+            'pic': self.gravatar(size=256),
             'username': self.username,
             'member_since': self.member_since,
             'last_seen': self.last_seen,
             'posts': url_for('api.get_user_posts', id=self.id, _external=True),
             'followed_posts': url_for('api.get_user_followed_posts',
                                       id=self.id, _external=True),
-            'post_count': self.posts.count()
+            'post_count': self.posts.count(),
+            'summary': self.summary
         }
         return json_user
+
+    def getInfo(self):
+        json_info = {i: None for i in range(11)}
+        json_info[0] = self.to_json()
+        for id, user in enumerate(self.recommendation.split()):
+            json_info[id+1] = User.query.get_or_404(int(user)).to_json()
+        return json_info
 
     def generate_auth_token(self, expiration):
         s = Serializer(current_app.config['SECRET_KEY'],
