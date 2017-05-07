@@ -139,15 +139,30 @@ class User(UserMixin, db.Model):
     # This function should be called before ML
     @staticmethod
     def Summary():
-        from collections import defaultdict
+        from collections import OrderedDict
+        actSet = OrderedDict({i:0 for i in ['chest press', 'seated row', 'leg press',
+                                'abdominal', 'bicep curl', 'counter balance smith',
+                                'tricep press', 'leg extension', 'hyperextension']})
         for user in User.query.all():
             postList = [str(post.body).split('/') for post in user.posts if post.timestamp - datetime.datetime.utcnow() < datetime.timedelta(days=7)]
-            dic = defaultdict(int)
+            dic = actSet.copy()
             for type,weight,amount in postList:
                 dic[type] += int(weight) * int(amount)
-            user.summary = str(dic)
+            user.summary = " ".join([str(i) for i in dic.values()])
             db.session.add(user)
         db.session.commit()
+
+    @staticmethod
+    def Recommandation():
+        from collections import OrderedDict
+        import pandas as pd
+        rawDic = OrderedDict([(i,[]) for i in ['id', 'chest press', 'seated row', 'leg press',
+                            'abdominal', 'bicep curl', 'counter balance smith',
+                            'tricep press', 'leg extension', 'hyperextension']])
+        for user in User.query.all():
+            for i,j in zip(rawDic.keys(), [user.id]+user.summary.split()): rawDic[i].append(j)
+        df = pd.DataFrame.from_dict(rawDic)
+        df.to_csv('data.csv')
 
     def __init__(self, **kwargs):
         super(User, self).__init__(**kwargs)
