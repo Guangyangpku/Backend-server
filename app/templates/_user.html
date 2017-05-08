@@ -1,0 +1,52 @@
+<ul class="posts">
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    {% for user in users %}
+    <script type="text/javascript">
+      google.charts.load('current', {'packages':['corechart']});
+      google.charts.setOnLoadCallback(drawChart);
+
+      function drawChart() {
+
+        var a = ['chest press', 'seated row', 'leg press', 'abdominal', 'bicep curl',
+                'counter balance smith', 'tricep press', 'leg extension', 'hyperextension']
+        var b = "{{user.summary}}".split(" ")
+
+        var c = a.map(function (e, i) {
+            return [e, parseInt(b[i])];
+        });
+
+        var data = google.visualization.arrayToDataTable([['Task', 'Energy Units']].concat(c));
+
+        var options = {
+          title: 'Weekly Activities'
+        };
+
+        var chart = new google.visualization.PieChart(document.getElementById("{{user.username}}"));
+
+        chart.draw(data, options);
+      }
+    </script>
+    <li class="post row">
+        <div class="visible-lg visible-md col-md-3">
+            <img class="img-rounded profile-thumbnail col-md-10" style="margin-top: 30px;" src="{{ user.gravatar(size=196) }}" >
+        </div>
+        <div class="col-md-4" >
+            <h1>
+                <a href="{{ url_for('.user', username=user.username) }}">
+                    {% if user.name %} {{ user.name }} {% else %} {{ user.username }} {% endif %}
+                </a>
+            </h1>
+            <p>
+                {% if user.location %}
+                    From <a href="http://maps.google.com/?q={{ user.location }}">{{ user.location }}</a><br>
+                {% endif %}
+            </p>
+            {% if user.about_me %}<p>{{ user.about_me }}</p>{% endif %}
+            <p>Member since {{ moment(user.member_since).format('L') }}. Last seen {{ moment(user.last_seen).fromNow() }}.</p>
+        </div>
+        <div class="col-md-5" >
+            <div id={{user.username}} style="height:270px; width: 500px; "></div>
+        </div>
+    </li>
+    {% endfor %}
+</ul>

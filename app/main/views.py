@@ -11,27 +11,25 @@ from ..decorators import admin_required, permission_required
 
 @main.route('/', methods=['GET', 'POST'])
 def index():
-    form = PostForm()
-    if current_user.can(Permission.WRITE_ARTICLES) and \
-            form.validate_on_submit():
-        post = Post(body=form.body.data,
-                    author=current_user._get_current_object())
-        db.session.add(post)
-        return redirect(url_for('.index'))
     page = request.args.get('page', 1, type=int)
     show_followed = False
     if current_user.is_authenticated:
         show_followed = bool(request.cookies.get('show_followed', ''))
     if show_followed:
-        query = current_user.followed_posts
+        query = current_user.followed
+        pagination = query.paginate(
+            page, per_page=current_app.config['FLASK_FOLLOWERS_PER_PAGE'],
+            error_out=False)
+        users = [item.followed for item in pagination.items]
     else:
-        query = Post.query
-    pagination = query.order_by(Post.timestamp.desc()).paginate(
-        page, per_page=current_app.config['FLASK_POSTS_PER_PAGE'],
-        error_out=False)
-    posts = pagination.items
-    return render_template('index.html', form=form, posts=posts,
-                           show_followed=show_followed, pagination=pagination)
+        query = User.query
+        pagination = query.order_by(User.username.desc()).paginate(
+            page, per_page=current_app.config['FLASK_POSTS_PER_PAGE'],
+            error_out=False)
+        users = pagination.items
+
+    #  form=form,show_followed=show_followed,
+    return render_template('index.html', users=users, show_followed=show_followed, pagination=pagination)
 
 
 @main.route('/user/<username>')

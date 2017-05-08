@@ -137,10 +137,15 @@ class User(UserMixin, db.Model):
                 db.session.add(user)
         db.session.commit()
 
-    # This function should be called before Recommendation
     @staticmethod
-    def Summary():
+    def ML():
+        import numpy as np
+        import pandas as pd
         from collections import OrderedDict
+        from sklearn.metrics.pairwise import pairwise_distances
+        from sklearn.preprocessing import StandardScaler
+
+        #create summary
         actSet = OrderedDict({i:0 for i in ['chest press', 'seated row', 'leg press',
                                 'abdominal', 'bicep curl', 'counter balance smith',
                                 'tricep press', 'leg extension', 'hyperextension']})
@@ -153,26 +158,13 @@ class User(UserMixin, db.Model):
             db.session.add(user)
         db.session.commit()
 
-    @staticmethod
-    def Recommendation():
-        from collections import OrderedDict
-        import pandas as pd
         rawDic = OrderedDict([(i,[]) for i in ['id', 'chest press', 'seated row', 'leg press',
                             'abdominal', 'bicep curl', 'counter balance smith',
                             'tricep press', 'leg extension', 'hyperextension']])
         for user in User.query.all():
             for i,j in zip(rawDic.keys(), [user.id]+user.summary.split()): rawDic[i].append(j)
         df = pd.DataFrame.from_dict(rawDic)
-        df.to_csv('data.csv',index=False)
 
-    @staticmethod
-    def ML():
-        import numpy as np
-        import pandas as pd
-        from sklearn.metrics.pairwise import pairwise_distances
-        from sklearn.preprocessing import StandardScaler
-
-        df = pd.read_csv('data.csv')
         n_users = df.id.nunique()
         n_items = df.columns.nunique() - 1
 
@@ -190,7 +182,9 @@ class User(UserMixin, db.Model):
 
         user_similarity = pairwise_distances(data_matrix, metric='l2')
         for user in User.query.all():
-            user.recommendation = ' '.join([str(i[0]) for i in sorted(enumerate(user_similarity[user.id-1]),key=lambda x:x[1])[1:11]])
+            user.recommendation = ' '.join([str(i[0]) for i in sorted(enumerate(user_similarity[user.id-1]),key=lambda x:x[1])[1:11]])\
+                                    + ' '\
+                                    + "".join(map(lambda x:str(x[0]),sorted(enumerate(user.summary.split()),key=lambda x:int(x[1]))))
             db.session.add(user)
         db.session.commit()
 
@@ -319,23 +313,26 @@ class User(UserMixin, db.Model):
 
     def to_json(self):
         json_user = {
-            'url': url_for('api.get_user', id=self.id, _external=True),
             'pic': self.gravatar(size=256),
             'username': self.username,
             'member_since': self.member_since,
             'last_seen': self.last_seen,
-            'posts': url_for('api.get_user_posts', id=self.id, _external=True),
-            'followed_posts': url_for('api.get_user_followed_posts',
-                                      id=self.id, _external=True),
-            'post_count': self.posts.count(),
             'summary': self.summary
         }
         return json_user
 
     def getInfo(self):
-        json_info = {i: None for i in range(11)}
-        json_info[0] = self.to_json()
-        for id, user in enumerate(self.recommendation.split()):
+        json_info = {i: None for i in range(12)}
+        json_info[0] = {
+            'pic': self.gravatar(size=256),
+            'username': self.username,
+            'member_since': self.member_since,
+            'last_seen': self.last_seen,
+            'summary': self.summary,
+            'posts': ",".join([post.body for post in self.posts.order_by(Post.timestamp.desc())[:10]])
+        }
+        json_info[11] = {"lalala": self.recommendation.split()[-1]}
+        for id, user in enumerate(self.recommendation.split()[:-1]):
             json_info[id+1] = User.query.get_or_404(int(user)).to_json()
         return json_info
 
@@ -409,14 +406,9 @@ class Post(db.Model):
 
     def to_json(self):
         json_post = {
-            'url': url_for('api.get_post', id=self.id, _external=True),
             'body': self.body,
             'body_html': self.body_html,
             'timestamp': self.timestamp,
-            'author': url_for('api.get_user', id=self.author_id,
-                              _external=True),
-            'comments': url_for('api.get_post_comments', id=self.id,
-                                _external=True),
             'comment_count': self.comments.count()
         }
         return json_post
@@ -452,13 +444,9 @@ class Comment(db.Model):
 
     def to_json(self):
         json_comment = {
-            'url': url_for('api.get_comment', id=self.id, _external=True),
-            'post': url_for('api.get_post', id=self.post_id, _external=True),
             'body': self.body,
             'body_html': self.body_html,
-            'timestamp': self.timestamp,
-            'author': url_for('api.get_user', id=self.author_id,
-                              _external=True),
+            'timestamp': self.timestamp
         }
         return json_comment
 

@@ -4,9 +4,36 @@
 {% block title %}Profile - {{ user.username }}{% endblock %}
 
 {% block page_content %}
-<div class="page-header">
-    <img class="img-rounded profile-thumbnail" src="{{ user.gravatar(size=256) }}">
-    <div class="profile-header">
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+  google.charts.load('current', {'packages':['corechart']});
+  google.charts.setOnLoadCallback(drawChart);
+
+  function drawChart() {
+
+    var a = ['chest press', 'seated row', 'leg press', 'abdominal', 'bicep curl',
+            'counter balance smith', 'tricep press', 'leg extension', 'hyperextension']
+    var b = "{{user.summary}}".split(" ")
+
+    var c = a.map(function (e, i) {
+        return [e, parseInt(b[i])];
+    });
+
+    var data = google.visualization.arrayToDataTable([['Task', 'Energy Units']].concat(c));
+
+    var options = {
+      title: 'Weekly Activities'
+    };
+
+    var chart = new google.visualization.PieChart(document.getElementById("{{user.username}}"));
+
+    chart.draw(data, options);
+  }
+</script>
+
+<div class="row page-header">
+    <img class="col-md-2 img-rounded profile-thumbnail" src="{{ user.gravatar(size=256) }}">
+    <div class="col-md-4 profile-header">
         <h1>{{ user.username }}</h1>
         {% if user.name or user.location %}
         <p>
@@ -44,6 +71,9 @@
             <a class="btn btn-danger" href="{{ url_for('.edit_profile_admin', id=user.id) }}">Edit Profile [Admin]</a>
             {% endif %}
         </p>
+    </div>
+    <div class="col-md-5">
+        <div id={{user.username}} style="height:270px; width: 500px;"></div>
     </div>
 </div>
 <h3>Records of {{ user.username }}</h3>
