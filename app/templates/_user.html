@@ -18,7 +18,10 @@
         var data = google.visualization.arrayToDataTable([['Task', 'Energy Units']].concat(c));
 
         var options = {
-          title: 'Weekly Activities'
+          title: 'Weekly Activities',
+          chartArea:{left:10,height:'80%',width:'100%'},
+        //   sliceVisibilityThreshold: .1
+          backgroundColor: { fill:'transparent' },
         };
 
         var chart = new google.visualization.PieChart(document.getElementById("{{user.username}}"));
@@ -28,7 +31,7 @@
     </script>
     <li class="post row">
         <div class="visible-lg visible-md col-md-3">
-            <img class="img-rounded profile-thumbnail col-md-10" style="margin-top: 30px;" src="{{ user.gravatar(size=196) }}" >
+            <img class="img-rounded profile-thumbnail" src="{{ user.gravatar(size=196) }}" >
         </div>
         <div class="col-md-4" >
             <h1>
@@ -45,7 +48,7 @@
             <p>Member since {{ moment(user.member_since).format('L') }}. Last seen {{ moment(user.last_seen).fromNow() }}.</p>
         </div>
         <div class="col-md-5" >
-            <div id={{user.username}} style="height:270px; width: 500px; "></div>
+            <div id={{user.username}} style="height:200px; width: 100%; "></div>
         </div>
     </li>
     {% endfor %}

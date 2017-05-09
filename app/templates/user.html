@@ -22,7 +22,10 @@
     var data = google.visualization.arrayToDataTable([['Task', 'Energy Units']].concat(c));
 
     var options = {
-      title: 'Weekly Activities'
+      title: 'Weekly Activities',
+    //   sliceVisibilityThreshold: .1
+      is3D: true,
+      chartArea:{left:10,height:'80%',width:'100%'},
     };
 
     var chart = new google.visualization.PieChart(document.getElementById("{{user.username}}"));
@@ -73,7 +76,7 @@
         </p>
     </div>
     <div class="col-md-5">
-        <div id={{user.username}} style="height:270px; width: 500px;"></div>
+        <div id={{user.username}} style="height:270px; width: 100%;"></div>
     </div>
 </div>
 <h3>Records of {{ user.username }}</h3>
