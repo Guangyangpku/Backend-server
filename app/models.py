@@ -154,7 +154,7 @@ class User(UserMixin, db.Model):
             dic = actSet.copy()
             for type,weight,amount in postList:
                 dic[type] += int(weight) * int(amount)
-            user.summary = " ".join([str(i) for i in dic.values()])
+            user.summary = " ".join(["{0:.1f}".format(i*0.00064) for i in dic.values()])
             db.session.add(user)
         db.session.commit()
 
@@ -184,7 +184,7 @@ class User(UserMixin, db.Model):
         for user in User.query.all():
             user.recommendation = ' '.join([str(i[0]) for i in sorted(enumerate(user_similarity[user.id-1]),key=lambda x:x[1])[1:11]])\
                                     + ' '\
-                                    + "".join(map(lambda x:str(x[0]),sorted(enumerate(user.summary.split()),key=lambda x:int(x[1]))))
+                                    + "".join(map(lambda x:str(x[0]),sorted(enumerate(user.summary.split()),key=lambda x:float(x[1]))))
             db.session.add(user)
         db.session.commit()
 
@@ -323,13 +323,18 @@ class User(UserMixin, db.Model):
 
     def getInfo(self):
         json_info = {i: None for i in range(12)}
+        time = sum([int(post.body.split('/')[-1])*0.033 for post in self.posts])
         json_info[0] = {
             'pic': self.gravatar(size=256),
             'username': self.username,
-            'member_since': self.member_since,
             'last_seen': self.last_seen,
             'summary': self.summary,
-            'posts': ",".join([post.body for post in self.posts.order_by(Post.timestamp.desc())[:10]])
+            'posts': ",".join([post.body for post in self.posts.order_by(Post.timestamp.desc())[:10]]),
+            # total_min, total_complete, member_since, total_cal
+            'number': ",".join([("{0:.1f} mins".format(time)) if time<60 else "{0:.1f} hours".format(time/60),
+                                str(len(self.posts.all())),
+                                str(datetime.datetime.utcnow() - self.member_since).split()[0],
+                                str("{0:.1f}".format(sum(map(float,self.summary.split()))))])
         }
         json_info[11] = {"lalala": self.recommendation.split()[-1]}
         for id, user in enumerate(self.recommendation.split()[:-1]):
@@ -390,10 +395,10 @@ class Post(db.Model):
             u = User.query.offset(randint(0, user_count - 1)).first()
             #forgery_py.lorem_ipsum.sentences(randint(1, 5))
             p = Post(body=actSet[randint(0,8)]+'/'+str(randint(30,100))+'/'+str(randint(10,50)),
-                     timestamp=forgery_py.date.date(True),
+                     timestamp=forgery_py.date.date(True,0,7),
                      author=u)
             db.session.add(p)
-            db.session.commit()
+        db.session.commit()
 
     @staticmethod
     def on_changed_body(target, value, oldvalue, initiator):
