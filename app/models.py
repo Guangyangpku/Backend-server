@@ -149,14 +149,25 @@ class User(UserMixin, db.Model):
         actSet = OrderedDict({i:0 for i in ['chest press', 'seated row', 'leg press',
                                 'abdominal', 'bicep curl', 'counter balance smith',
                                 'tricep press', 'leg extension', 'hyperextension']})
+
+        rawDic = OrderedDict([('user',[]),('item',[]),('rating',[])])
+
         for user in User.query.all():
             postList = [str(post.body).split('/') for post in user.posts if post.timestamp - datetime.datetime.utcnow() < datetime.timedelta(days=7)]
             dic = actSet.copy()
             for type,weight,amount in postList:
                 dic[type] += int(weight) * int(amount)
             user.summary = " ".join(["{0:.1f}".format(i*0.00064) for i in dic.values()])
+
+            for key,item in enumerate(user.summary.split()):
+                rawDic['user'].append(user.id)
+                rawDic['item'].append(key)
+                rawDic['rating'].append(item)
+
             db.session.add(user)
         db.session.commit()
+
+        pd.DataFrame.from_dict(rawDic).to_csv('data.csv',index=False)
 
         rawDic = OrderedDict([(i,[]) for i in ['id', 'chest press', 'seated row', 'leg press',
                             'abdominal', 'bicep curl', 'counter balance smith',
